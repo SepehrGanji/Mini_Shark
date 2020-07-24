@@ -10,7 +10,7 @@ def get_mac(mac):
                      in zip(*[iter('{:012x}'.format(macint))]*2)])
 
 def ether(data):
-    dest_mac, src_mac, prot = unpack('! 6s 6s H', data[:14])
+    dest_mac, src_mac, prot = unpack('!6s6sH', data[:14])
     return [get_mac(src_mac), get_mac(dest_mac), htons(prot), data[14:]]
 
 def arp(data):
@@ -32,7 +32,10 @@ def tcp(data):
     pass
 
 def udp(data):
-    pass
+    mydata = unpack('!HHHH', data[:8])
+    return [mydata[0], mydata[1], mydata[2]
+    , hex(mydata[3]), data[8:]
+    ]
 
 def http(data):
     pass
@@ -52,13 +55,14 @@ while(True):
     if(ether_header[2] == 8): #IP
         ip_header = ip(ether_header[3])#IPv4/header length/type of serviece/total length
         #ID, Flag, Offset/TTL/Protocol/Header Checksum/src, dest
-        if(ip_header[8] == 1):
+        if(ip_header[8] == 1): #ICMP
             icmp_header = icmp(ip_header[-1])
             #TODO : print the rest
-        elif(ip_header[8] == 6):
+        elif(ip_header[8] == 6): #TCP
             pass
-        elif(ip_header[8] == 17):
-            pass
+        elif(ip_header[8] == 17): #UDP
+            udp_header = udp(ip_header[-1])
+            #TODO print the rest
         else:
             pass
     elif(ether_header[2] == 1544): #ARP
