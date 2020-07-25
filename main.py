@@ -29,7 +29,20 @@ def icmp(data):
     return [typ, code, hex(checksum), repr(data[4:])]
 
 def tcp(data):
-    pass
+    mydata = unpack('!HHII2sHHH', data[:20])
+    bites = bin(int.from_bytes(mydata[4], 'big'))
+    mybites = bites[2:]
+    return [
+        mydata[0], mydata[1], mydata[2], mydata[3],
+        mybites[:4], #Data offset
+        mybites[10], #URG
+        mybites[11], #ACK
+        mybites[13], #RST
+        mybites[14], #SYN
+        mybites[15], #FIN
+        mydata[5], hex(mydata[6]), mydata[7],
+        data[20:]
+    ]
 
 def udp(data):
     mydata = unpack('!HHHH', data[:8])
@@ -59,7 +72,8 @@ while(True):
             icmp_header = icmp(ip_header[-1])
             #TODO : print the rest
         elif(ip_header[8] == 6): #TCP
-            pass
+            tcp_header = tcp(ip_header[-1])
+            #TODO : print the rest
         elif(ip_header[8] == 17): #UDP
             udp_header = udp(ip_header[-1])
             #TODO print the rest
