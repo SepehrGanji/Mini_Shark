@@ -14,7 +14,10 @@ def ether(data):
     return [get_mac(src_mac), get_mac(dest_mac), htons(prot), data[14:]]
 
 def arp(data):
-    pass
+    HRD, PRO, HLN, PLN, OP = unpack('!HHBBH', data[:8])
+    return [
+        HRD, PRO, HLN, PLN, OP, data[8:]
+    ]
 
 def ip(data):
     mydata = unpack('!BBHHHBBH4s4s', data[:20])
@@ -32,17 +35,20 @@ def tcp(data):
     mydata = unpack('!HHII2sHHH', data[:20])
     bites = bin(int.from_bytes(mydata[4], 'big'))
     mybites = bites[2:]
-    return [
-        mydata[0], mydata[1], mydata[2], mydata[3],
-        mybites[:4], #Data offset
-        mybites[10], #URG
-        mybites[11], #ACK
-        mybites[13], #RST
-        mybites[14], #SYN
-        mybites[15], #FIN
-        mydata[5], hex(mydata[6]), mydata[7],
-        data[20:]
-    ]
+    try:
+        return [
+            mydata[0], mydata[1], mydata[2], mydata[3],
+            mybites[:4], #Data offset
+            mybites[10], #URG
+            mybites[11], #ACK
+            mybites[13], #RST
+            mybites[14], #SYN
+            mybites[15], #FIN
+            mydata[5], hex(mydata[6]), mydata[7],
+            data[20:]
+        ]
+    except:
+        return [mydata[0], mydata[1], mydata[2], mydata[3], data[20:]]
 
 def udp(data):
     mydata = unpack('!HHHH', data[:8])
@@ -73,14 +79,18 @@ while(True):
             #TODO : print the rest
         elif(ip_header[8] == 6): #TCP
             tcp_header = tcp(ip_header[-1])
+            if(tcp_header[0] == 80 or tcp_header[1] == 80):
+                print("HTTP/TCP")
             #TODO : print the rest
         elif(ip_header[8] == 17): #UDP
             udp_header = udp(ip_header[-1])
+            if(udp_header[0] == 80 or udp_header[1] == 80):
+                print("HTTP/UDP")
             #TODO print the rest
         else:
             pass
     elif(ether_header[2] == 1544): #ARP
-        #TODO : arp
-        pass
+        arp(ether_header(3))
+        #TODO : print rest
     else: #Unknown
         pass
