@@ -83,12 +83,16 @@ def dns(data):
         header_data[5], content
     ]
 
+#Start of Program
+f = open("Packets.pcap", "w")
+f.close()
 connection = socket(AF_PACKET, SOCK_RAW, ntohs(3))
 
 while(True):
+    myfile = open("Packets.pcap", "ab")
     data, addr = connection.recvfrom(65535)
-    #TODO : save to file
-
+    myfile.write(data)
+    myfile.close()
     ether_header = ether(data)
     #TODO : print eth header
 
