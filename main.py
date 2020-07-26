@@ -93,7 +93,7 @@ def printDNS(dns_hh):
     + ", AdditionalInfoCount: " + str(dns_h[5]))
     print("\tContent: " + str(dns_hh[-1]))
 
-#Start of Program
+#Start of program
 f = open("Packets.pcap", "w")
 f.close()
 connection = socket(AF_PACKET, SOCK_RAW, ntohs(3))
@@ -194,3 +194,5 @@ while(True):
     else: #UnknownIP
         print("-Unknown Network Layer:")
         print(ether_header[-1])
+
+#End of progran
