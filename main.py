@@ -57,10 +57,31 @@ def udp(data):
     ]
 
 def http(data):
-    pass
+    decoded_data = data.decode("utf-8", errors="ignore")
+    #supporting GET & POST & Response
+    method = ""
+    if(decoded_data[0:3] == "GET"):
+        method = "GET"
+    elif(decoded_data[0:4] == "POST"):
+        method = "POST"
+    elif(decoded_data[0:4] == "HTTP"):
+        method = "Response"
+    else:
+        method = "Unknown"
+    return [
+        method, decoded_data
+    ]
 
 def dns(data):
-    pass
+    header = data[:12]
+    content = data[12:]
+    header_data = unpack('!H2sHHHH', header)
+    flags = bin(int.from_bytes(header_data[1], 'big'))
+    return [
+        header_data[0], flags[2:], header_data[2],
+        header_data[3], header_data[4],
+        header_data[5], content
+    ]
 
 connection = socket(AF_PACKET, SOCK_RAW, ntohs(3))
 
@@ -80,15 +101,26 @@ while(True):
         elif(ip_header[8] == 6): #TCP
             tcp_header = tcp(ip_header[-1])
             if(tcp_header[0] == 80 or tcp_header[1] == 80):
-                print("HTTP/TCP")
-            #TODO : print the rest
+                http_h = http(tcp_header[-1])
+                #TODO : print http
+            elif(tcp_header[0] == 53 or tcp_header[1] == 53):
+                dns_h = dns(udp_header[-1])
+                #TODO : print the rest
+            else:
+                pass
+                #TODO : print the rest
         elif(ip_header[8] == 17): #UDP
             udp_header = udp(ip_header[-1])
-            #TODO print the rest
+            if(udp_header[0] == 53 or udp_header[1] == 53):
+                dns_h = dns(udp_header[-1])
+                #TODO : print the rest
+            else:
+                pass
+                #TODO print the rest
         else:
             pass
     elif(ether_header[2] == 1544): #ARP
-        arp(ether_header(3))
+        arp(ether_header[3])
         #TODO : print rest
     else: #Unknown
         pass
