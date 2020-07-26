@@ -11,7 +11,7 @@ def get_mac(mac):
 
 def ether(data):
     dest_mac, src_mac, prot = unpack('!6s6sH', data[:14])
-    return [get_mac(src_mac), get_mac(dest_mac), htons(prot), data[14:]]
+    return [get_mac(dest_mac), get_mac(src_mac), htons(prot), data[14:]]
 
 def arp(data):
     HRD, PRO, HLN, PLN, OP = unpack('!HHBBH', data[:8])
@@ -93,12 +93,29 @@ while(True):
     data, addr = connection.recvfrom(65535)
     myfile.write(data)
     myfile.close()
+    print("********NewPacket********")
+    #Ethernet
     ether_header = ether(data)
-    #TODO : print eth header
-
+    print("-Ethernet Frame:")
+    print("\tDestination MAC: " + ether_header[0] + ", Source MAC: " + ether_header[1]
+    + ", Protocol: " + str(ether_header[2]))
+    #End Ethernet
     if(ether_header[2] == 8): #IP
-        ip_header = ip(ether_header[3])#IPv4/header length/type of serviece/total length
-        #ID, Flag, Offset/TTL/Protocol/Header Checksum/src, dest
+        ip_header = ip(ether_header[-1])
+        print("-IP Packet:")
+        print("\tVersion: " + str(ip_header[0])
+        + ", HeaderLenght: " + str(ip_header[1])
+        + ", TOS: " + str(ip_header[2])
+        + ", Totlal length: " + str(ip_header[3]))
+        print("\tIdentification: " + str(ip_header[4])
+        + ", IPFlags: " + str(ip_header[5])
+        + ", Offset: " + str(ip_header[6])
+        + ", TTL: " + str(ip_header[7]))
+        print("\tProtocol: " + str(ip_header[8])
+        + ", HeaderChecksum: " + ip_header[9]
+        + ", SourceIP: " + ip_header[10]
+        + ", DestinationIP: " + ip_header[11])
+        #End IP
         if(ip_header[8] == 1): #ICMP
             icmp_header = icmp(ip_header[-1])
             #TODO : print the rest
@@ -124,7 +141,14 @@ while(True):
         else:
             pass
     elif(ether_header[2] == 1544): #ARP
-        arp(ether_header[3])
-        #TODO : print rest
+        arp_h = arp(ether_header[-1])
+        print("-ARP Packet:")
+        print("\tHardware type: " + arp_h[0]
+        + ", Protocol type: " + arp_h[1]
+        + ", Hardware address length: " + arp_h[2])
+        print("\tProtocol address length: " + arp_h[3]
+        + ", Operation: " + arp_h[4])
+        print("\tData: " + arp_h[-1])
     else: #Unknown
-        pass
+        print("-Unknown Network Layer:")
+        print(ether_header[-1])
