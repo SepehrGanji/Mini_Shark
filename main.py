@@ -83,6 +83,16 @@ def dns(data):
         header_data[5], content
     ]
 
+def printDNS(dns_hh):
+    print("-DNS :")
+    print("\tID: " + str(dns_hh[0])
+    + ", flags: " + dns_hh[1]
+    + ", QuestionCount: " + str(dns_hh[2]))
+    print("\tAnswerCount: " + str(dns_hh[3])
+    + ", NSCount: " + str(dns_hh[4])
+    + ", AdditionalInfoCount: " + str(dns_h[5]))
+    print("\tContent: " + str(dns_hh[-1]))
+
 #Start of Program
 f = open("Packets.pcap", "w")
 f.close()
@@ -143,17 +153,18 @@ while(True):
                 + ", Urgent: " + str(tcp_header[12]))
             else:
                 print("\tCan't parse rest of segment: "
-                + tcp_header[-1])
+                + str(tcp_header[-1]))
             #End TCP
             if(tcp_header[0] == 80 or tcp_header[1] == 80):
                 http_h = http(tcp_header[-1])
-                #TODO : print http
+                print("-HTTP " + http_h[0])
+                print(http_h[1])
             elif(tcp_header[0] == 53 or tcp_header[1] == 53):
-                dns_h = dns(udp_header[-1])
-                #TODO : print the rest
+                dns_h = dns(tcp_header[-1])
+                printDNS(dns_h)
             else:
-                pass
-                #TODO : print the rest
+                print("-Unknown Application Layer:")
+                print(tcp_header[-1])
         elif(ip_header[8] == 17): #UDP
             udp_header = udp(ip_header[-1])
             print("-UDP Datagram:")
@@ -164,10 +175,10 @@ while(True):
             #End UDP
             if(udp_header[0] == 53 or udp_header[1] == 53):
                 dns_h = dns(udp_header[-1])
-                #TODO : print the rest
+                printDNS(dns_h)
             else:
-                pass
-                #TODO print the rest
+                print("-Unknown Application Layer:")
+                print(udp_header[-1])
         else:#UnknownTransport
             print("-Unknown Transport Layer:")
             print(ip_header[-1])
