@@ -84,8 +84,6 @@ while(True):
             #TODO : print the rest
         elif(ip_header[8] == 17): #UDP
             udp_header = udp(ip_header[-1])
-            if(udp_header[0] == 80 or udp_header[1] == 80):
-                print("HTTP/UDP")
             #TODO print the rest
         else:
             pass
