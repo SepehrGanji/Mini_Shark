@@ -118,9 +118,33 @@ while(True):
         #End IP
         if(ip_header[8] == 1): #ICMP
             icmp_header = icmp(ip_header[-1])
-            #TODO : print the rest
+            print("-ICMP segment:")
+            print("\tType: " + str(icmp_header[0])
+            +", Code: " + str(icmp_header[1])
+            + ", Checksum: " + icmp_header[2])
+            print("\tContent: " + icmp_header[3])
+            #End ICMP
         elif(ip_header[8] == 6): #TCP
             tcp_header = tcp(ip_header[-1])
+            print("-TCP Segment:")
+            print("\tSourcePort: " + str(tcp_header[0])
+            + ", DestinationPort: " + str(tcp_header[1])
+            + ", SequenceNum: " + str(tcp_header[2])
+            + ", ACKNum: " + str(tcp_header[3]))
+            if(len(tcp_header) == 14):
+                print("\tDataOffset: "+ str(tcp_header[4])
+                + ", URGFlag: " + str(tcp_header[5])
+                + ", ACKFlag: " + str(tcp_header[6]))
+                print("\tRSTFlag: " + str(tcp_header[7])
+                + ", SYNFlag: " + str(tcp_header[8])
+                + ", FINFlag: " + str(tcp_header[9]))
+                print("\tWindowSize: " + str(tcp_header[10])
+                + ", CheckSum: " + tcp_header[11]
+                + ", Urgent: " + str(tcp_header[12]))
+            else:
+                print("\tCan't parse rest of segment: "
+                + tcp_header[-1])
+            #End TCP
             if(tcp_header[0] == 80 or tcp_header[1] == 80):
                 http_h = http(tcp_header[-1])
                 #TODO : print http
@@ -132,14 +156,21 @@ while(True):
                 #TODO : print the rest
         elif(ip_header[8] == 17): #UDP
             udp_header = udp(ip_header[-1])
+            print("-UDP Datagram:")
+            print("\tSourcePort: " + str(udp_header[0])
+            + ", DestinationPort: " + str(udp_header[1])
+            + ", Length: " + str(udp_header[2])
+            + ", CheckSum: " + udp_header[3])
+            #End UDP
             if(udp_header[0] == 53 or udp_header[1] == 53):
                 dns_h = dns(udp_header[-1])
                 #TODO : print the rest
             else:
                 pass
                 #TODO print the rest
-        else:
-            pass
+        else:#UnknownTransport
+            print("-Unknown Transport Layer:")
+            print(ip_header[-1])
     elif(ether_header[2] == 1544): #ARP
         arp_h = arp(ether_header[-1])
         print("-ARP Packet:")
@@ -149,6 +180,6 @@ while(True):
         print("\tProtocol address length: " + arp_h[3]
         + ", Operation: " + arp_h[4])
         print("\tData: " + arp_h[-1])
-    else: #Unknown
+    else: #UnknownIP
         print("-Unknown Network Layer:")
         print(ether_header[-1])
