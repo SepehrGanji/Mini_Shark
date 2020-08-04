@@ -1,5 +1,6 @@
 from socket import *
 from struct import *
+import time
 
 def get_mac(mac):
     macint = int.from_bytes(mac, 'big')
@@ -14,9 +15,9 @@ def ether(data):
     return [get_mac(dest_mac), get_mac(src_mac), htons(prot), data[14:]]
 
 def arp(data):
-    HRD, PRO, HLN, PLN, OP = unpack('!HHBBH', data[:8])
+    HRD, PRO, HLN, PLN, OP, SM, SA, DM, DA = unpack('!HHBBH6s4s6s4s', data[:28])
     return [
-        HRD, PRO, HLN, PLN, OP, data[8:]
+        HRD, PRO, HLN, PLN, OP, get_mac(SM), inet_ntoa(SA), get_mac(DM), inet_ntoa(DA)
     ]
 
 def ip(data):
@@ -32,23 +33,26 @@ def icmp(data):
     return [typ, code, hex(checksum), repr(data[4:])]
 
 def tcp(data):
-    mydata = unpack('!HHII2sHHH', data[:20])
-    bites = bin(int.from_bytes(mydata[4], 'big'))
-    mybites = bites[2:]
-    try:
-        return [
-            mydata[0], mydata[1], mydata[2], mydata[3],
-            mybites[:4], #Data offset
-            mybites[10], #URG
-            mybites[11], #ACK
-            mybites[13], #RST
-            mybites[14], #SYN
-            mybites[15], #FIN
-            mydata[5], hex(mydata[6]), mydata[7],
-            data[20:]
-        ]
-    except:
-        return [mydata[0], mydata[1], mydata[2], mydata[3], data[20:]]
+    udata = unpack('!HHLLH',data[:14])
+    flags = udata[4]
+    flag_urg = (flags & 32) >> 5
+    flag_ack = (flags & 16) >> 4
+    flag_psh = (flags & 8) >> 3
+    flag_rst = (flags & 4) >> 2
+    flag_syn = (flags & 2) >> 1
+    flag_fin = flags & 1
+    window_size = -1
+    ch_sum = 0x0
+    urg_pointer = -1
+    restofdata = data[14:]
+    if(len(restofdata) >= 6):
+        window_size, ch_sum, urg_pointer = unpack('!HHH', restofdata[:6])
+        restofdata = restofdata[6:]
+    return [
+        udata[0], udata[1], udata[2], udata[3],
+        flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin,
+        window_size, hex(ch_sum), urg_pointer, restofdata
+    ]
 
 def udp(data):
     mydata = unpack('!HHHH', data[:8])
@@ -80,7 +84,7 @@ def dns(data):
     return [
         header_data[0], flags[2:], header_data[2],
         header_data[3], header_data[4],
-        header_data[5], content
+        header_data[5], repr(content)
     ]
 
 def printDNS(dns_hh):
@@ -94,13 +98,17 @@ def printDNS(dns_hh):
     print("\tContent: " + str(dns_hh[-1]))
 
 #Start of program
-f = open("Packets.pcap", "w")
+f = open("Packets.pcap", "wb")
+f.write(pack('@IHHiIII', 0xa1b2c3d4, 2, 4, 0, 0, 65535, 1))
 f.close()
 connection = socket(AF_PACKET, SOCK_RAW, ntohs(3))
 
 while(True):
-    myfile = open("Packets.pcap", "ab")
     data, addr = connection.recvfrom(65535)
+    myfile = open("Packets.pcap", "ab")
+    mysec, myusec = map(int, str(time.time()).split('.'))
+    length = len(data)
+    myfile.write(pack('@IIII', mysec, myusec, length, length))
     myfile.write(data)
     myfile.close()
     print("********NewPacket********")
@@ -141,25 +149,21 @@ while(True):
             + ", DestinationPort: " + str(tcp_header[1])
             + ", SequenceNum: " + str(tcp_header[2])
             + ", ACKNum: " + str(tcp_header[3]))
-            if(len(tcp_header) == 14):
-                print("\tDataOffset: "+ str(tcp_header[4])
-                + ", URGFlag: " + str(tcp_header[5])
-                + ", ACKFlag: " + str(tcp_header[6]))
-                print("\tRSTFlag: " + str(tcp_header[7])
-                + ", SYNFlag: " + str(tcp_header[8])
-                + ", FINFlag: " + str(tcp_header[9]))
-                print("\tWindowSize: " + str(tcp_header[10])
-                + ", CheckSum: " + tcp_header[11]
-                + ", Urgent: " + str(tcp_header[12]))
-            else:
-                print("\tCan't parse rest of segment: "
-                + str(tcp_header[-1]))
+            print("\tURG: " + str(tcp_header[4])
+            + ", ACK: " + str(tcp_header[5])
+            + ", PSH: " + str(tcp_header[6]))
+            print("\tRST: " + str(tcp_header[7])
+            + ", SYN: " + str(tcp_header[8])
+            + ", FIN: " + str(tcp_header[9]))
+            print("\tWindowSize: " + str(tcp_header[10])
+            + ", CheckSum: " + str(tcp_header[11])
+            + ", UrgentPointer: " + str(tcp_header[12]))
             #End TCP
-            if(tcp_header[0] == 80 or tcp_header[1] == 80):
+            if(tcp_header[0] == 80 or tcp_header[1] == 80): #HTTP
                 http_h = http(tcp_header[-1])
                 print("-HTTP " + http_h[0])
                 print(http_h[1])
-            elif(tcp_header[0] == 53 or tcp_header[1] == 53):
+            elif(tcp_header[0] == 53 or tcp_header[1] == 53): #DNS
                 dns_h = dns(tcp_header[-1])
                 printDNS(dns_h)
             else:
@@ -185,14 +189,15 @@ while(True):
     elif(ether_header[2] == 1544): #ARP
         arp_h = arp(ether_header[-1])
         print("-ARP Packet:")
-        print("\tHardware type: " + arp_h[0]
-        + ", Protocol type: " + arp_h[1]
-        + ", Hardware address length: " + arp_h[2])
-        print("\tProtocol address length: " + arp_h[3]
-        + ", Operation: " + arp_h[4])
-        print("\tData: " + arp_h[-1])
+        print("\tHardware type: " + str(arp_h[0])
+        + ", Protocol type: " + str(arp_h[1])
+        + ", Hardware address length: " + str(arp_h[2]))
+        print("\tProtocol address length: " + str(arp_h[3])
+        + ", Operation: " + str(arp_h[4]))
+        print("\tSender MAC: " + arp_h[5] + ", SenderIP: " + arp_h[6])
+        print("\tTarget MAC: " + arp_h[7] + ", TargetIP: " + arp_h[8])
     else: #UnknownIP
         print("-Unknown Network Layer:")
         print(ether_header[-1])
-
+    
 #End of progran
